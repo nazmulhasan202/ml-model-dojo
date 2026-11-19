@@ -36,10 +36,11 @@ class LayersEditor(QWidget):
     def _rebuild(self):
         while self.box.count():
             item = self.box.takeAt(0)
-            if item.widget():
-                item.widget().hide()
-                item.widget().setParent(None)
-                item.widget().deleteLater()
+            w = item.widget()          # keep a reference: it is gone from the item after setParent
+            if w is not None:
+                w.hide()               # hide now, otherwise it keeps painting until it is deleted
+                w.setParent(None)
+                w.deleteLater()
             elif item.layout():
                 self._clear(item.layout())
         for i, n in enumerate(self.layers):

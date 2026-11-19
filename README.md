@@ -69,7 +69,13 @@ Double-click `run_tests.bat`, or run:
 .venv\Scripts\python -m pytest
 ```
 
-The suite has unit tests (seeding, every dataset generator, splits, every metric against hand-computed values, every model) and a GUI smoke test with `pytest-qt` in offscreen mode. The GUI test chooses XOR, trains a decision tree, checks the metrics panel, and runs the Compare tab with two models in separate processes. Running everything takes about two minutes.
+The suite has three layers:
+
+* **Fast tests** (about 3 minutes): seeding, every dataset generator, splits, every metric against hand-computed values, every model, and a GUI smoke test with `pytest-qt` in offscreen mode (choose XOR, train a tree, run Compare with two models, save and restore settings).
+* **Model sweeps** (`tests/test_models_fuzz.py`, about 3 minutes): every data generator at every size and at extreme noise, balance and split settings, every hyperparameter of every model at its minimum, maximum, middle and every choice, and seeded random combinations of data and hyperparameters.
+* **GUI sweeps** (`tests/test_gui_exhaustive.py`, about 35 minutes): every control on every tab clicked through its extremes, action sequences (train, pause, step, reset, change data or settings mid-training, cancel, export), every dataset on every tab, very large data, the Compare tab with every model and every option, all eleven scenarios with their follow-ups, Save and Load including damaged files, the Help window and tour, and several window sizes. Any error reported to the user, or any exception inside a Qt slot, fails the test.
+
+Run only the fast tests with `python -m pytest -m "not slow"`. Exhaustive testing of every combination is impossible, so the sweeps cover each setting on its own plus many random combinations.
 
 To recompute and rewrite the verified scenario numbers in `docs/scenarios.md`:
 

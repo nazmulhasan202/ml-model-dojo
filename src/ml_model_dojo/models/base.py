@@ -59,10 +59,17 @@ class ModelSpec:
         return {p.key: p.default for p in self.param_schema(problem)}
 
     def clean_params(self, params: dict, problem: str) -> dict:
-        """Fill missing keys with defaults and drop unknown keys."""
-        d = self.default_params(problem)
-        d.update({k: v for k, v in (params or {}).items() if k in d})
-        return d
+        """Fill missing keys with defaults, drop unknown keys, and repair invalid values.
+
+        Settings can come from a saved file that was edited by hand, so every value is coerced into the
+        range and type that its control allows.
+        """
+        out = self.default_params(problem)
+        schema = {p.key: p for p in self.param_schema(problem)}
+        for key, value in (params or {}).items():
+            if key in schema:
+                out[key] = coerce_param(schema[key], value, out[key])
+        return out
 
     def iterative(self, problem: str) -> bool:
         return False
@@ -180,6 +187,32 @@ class Run:
             self._timed_predict(X)
             best = min(best, time.perf_counter() - t0)
         return best
+
+
+def coerce_param(p: ParamSpec, value, default):
+    """Return ``value`` made valid for the control described by ``p``, or ``default`` if it cannot be."""
+    try:
+        if p.kind == "int":
+            return int(min(max(int(round(float(value))), int(p.lo)), int(p.hi)))
+        if p.kind in ("float", "log"):
+            v = float(value)
+            if v != v or v in (float("inf"), float("-inf")):
+                return default
+            return float(min(max(v, p.lo), p.hi))
+        if p.kind == "choice":
+            allowed = [v for v, _ in p.choices]
+            return value if value in allowed else default
+        if p.kind == "bool":
+            return value if isinstance(value, bool) else default
+        if p.kind == "layers":
+            layers = [int(min(max(int(n), 1), 16)) for n in list(value)[:5]]
+            return layers or default
+        if p.kind == "flags":
+            flags = [str(f) for f in list(value)]
+            return flags or default
+    except (TypeError, ValueError):
+        return default
+    return value
 
 
 def oversample_minority(X: np.ndarray, y: np.ndarray, seed: int) -> tuple[np.ndarray, np.ndarray]:

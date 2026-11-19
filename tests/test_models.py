@@ -146,3 +146,33 @@ def test_regression_extrapolation_behavior():
 
 def test_specs_for_problem():
     assert len(specs_for("classification")) == 7 and len(specs_for("regression")) == 7
+
+
+@pytest.mark.parametrize("model_id", MODEL_ORDER)
+@pytest.mark.parametrize("problem", ["classification", "regression"])
+def test_clean_params_repairs_garbage(model_id, problem):
+    spec = get_spec(model_id)
+    defaults = spec.default_params(problem)
+    garbage = {}
+    for p in spec.param_schema(problem):
+        garbage[p.key] = {"int": "abc", "float": float("nan"), "log": -5, "choice": "weird", "bool": "yes",
+                          "layers": "oops", "flags": 7}[p.kind]
+    garbage["unknown_key"] = 1
+    cleaned = spec.clean_params(garbage, problem)
+    assert set(cleaned) == set(defaults)
+    for p in spec.param_schema(problem):
+        if p.kind in ("int", "float", "log"):
+            assert p.lo <= cleaned[p.key] <= p.hi
+        if p.kind == "choice":
+            assert cleaned[p.key] in [v for v, _ in p.choices]
+    # out-of-range numbers are clipped, not rejected
+    extreme = {p.key: 10**9 for p in spec.param_schema(problem) if p.kind in ("int", "float", "log")}
+    for k, v in spec.clean_params(extreme, problem).items():
+        if k in extreme:
+            assert v == next(p.hi for p in spec.param_schema(problem) if p.key == k)
+    # and the repaired settings still train
+    data = generate(DataConfig(problem, "moons" if problem == "classification" else "sine", 60), 1)
+    run = spec.start({**cleaned, **({"n_estimators": 5} if "n_estimators" in cleaned else {}),
+                      **({"max_epochs": 10} if "max_epochs" in cleaned else {})}, problem, 1, data)
+    run.fit_initial()
+    run.go_to_end()

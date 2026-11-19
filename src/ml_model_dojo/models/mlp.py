@@ -61,28 +61,50 @@ class MlpRun(Run):
         self.eps = int(p["epochs_per_step"])
         self.n_stages = int(np.ceil(int(p["max_epochs"]) / self.eps))
         self.epochs = 0
-        self.initialized = False
+        self.diverged = False
 
     def _scale(self, F):
         return self.scaler.transform(F) if self.scaler is not None else F
 
+    def _snapshot(self):
+        if not hasattr(self.est, "coefs_"):
+            return None
+        return ([w.copy() for w in self.est.coefs_], [b.copy() for b in self.est.intercepts_])
+
+    def _restore(self, snap) -> None:
+        self.est.coefs_, self.est.intercepts_ = snap
+
     def _advance(self) -> None:
         import warnings
         from sklearn.exceptions import ConvergenceWarning
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ConvergenceWarning)
-            for _ in range(self.eps):
-                if self.problem == CLS:
-                    self.est.partial_fit(self.Z, self.y, classes=np.array([0, 1]))
-                else:
-                    self.est.partial_fit(self.Z, self.y)
-                self.epochs += 1
+        snap = self._snapshot()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", ConvergenceWarning)
+                warnings.simplefilter("ignore", RuntimeWarning)
+                for _ in range(self.eps):
+                    snap = self._snapshot() or snap
+                    if self.problem == CLS:
+                        self.est.partial_fit(self.Z, self.y, classes=np.array([0, 1]))
+                    else:
+                        self.est.partial_fit(self.Z, self.y)
+                    self.epochs += 1
+        except ValueError:
+            # The weights became infinite (for example a very high learning rate). Keep the last good
+            # weights, stop training, and tell the user how to avoid it.
+            self.diverged = True
+            if snap is not None:
+                self._restore(snap)
+            self.stage = self.n_stages
+            self.notice = ("Training diverged: the weights became infinite, so training stopped. "
+                           "Lower the learning rate, turn on Standardize inputs, or use Adam.")
 
     def predict(self, X):
+        if getattr(self, "diverged", False) and not hasattr(self.est, "coefs_"):
+            return np.full(len(X), float(np.mean(self.y)))      # nothing usable was learned
         Z = self._scale(self.ft.transform(X))
-        if self.problem == CLS:
-            return self.est.predict_proba(Z)[:, 1]
-        return self.est.predict(Z)
+        out = self.est.predict_proba(Z)[:, 1] if self.problem == CLS else self.est.predict(Z)
+        return np.nan_to_num(out, nan=0.5 if self.problem == CLS else 0.0, posinf=1e6, neginf=-1e6)
 
     def facts(self) -> dict:
         n_par = 0

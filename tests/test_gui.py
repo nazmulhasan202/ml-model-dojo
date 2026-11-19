@@ -5,22 +5,6 @@ pytest.importorskip("PySide6")
 from ml_model_dojo.data.datasets import DataConfig
 from ml_model_dojo.models import MODEL_ORDER, get_spec
 from ml_model_dojo.scenarios.definitions import SCENARIOS
-from ml_model_dojo.ui.theme import apply_theme
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _theme(qapp):
-    apply_theme(qapp)
-
-
-@pytest.fixture
-def win(qtbot):
-    from ml_model_dojo.ui.main_window import MainWindow
-    w = MainWindow()
-    qtbot.addWidget(w)
-    w.show()
-    yield w
-    w.compare.shutdown()
 
 
 def test_decision_tree_on_xor_shows_metrics(qtbot, win):
@@ -121,3 +105,46 @@ def test_all_tabs_fit(qtbot, win, problem, ds):
         tab.step_once() if tab.spec.iterative(problem) else tab.fit_now()
         qtbot.waitUntil(lambda: tab.run is not None and tab.run.stage >= 1, timeout=30000)
         assert tab.plot.run is tab.run
+
+
+def test_layer_editor_buttons_and_reset_defaults(qtbot, win):
+    """Regression test: add layer, remove layer, bump neurons, then reset to defaults."""
+    from PySide6.QtWidgets import QPushButton
+    tab = win.model_tabs["mlp"]
+    win.tabs.setCurrentWidget(tab)
+    ed = tab.params.rows["layers"]["widget"]
+    start = ed.value()
+
+    def button(text):
+        return next(b for b in ed.findChildren(QPushButton) if b.text() == text and b.isVisible() or b.text() == text)
+
+    button("+ Layer").click()
+    assert len(ed.value()) == len(start) + 1
+    button("+ Layer").click()
+    button("- Layer").click()
+    assert len(ed.value()) == len(start) + 1
+    # every layer row still has its own minus and plus buttons
+    assert len([b for b in ed.findChildren(QPushButton) if b.text() == "+"]) == len(ed.value())
+    next(b for b in ed.findChildren(QPushButton) if b.text() == "+").click()
+    qtbot.wait(400)
+    assert tab.current_params()["layers"] == ed.value()
+    tab.reset_defaults()
+    qtbot.wait(400)
+    assert ed.value() == start
+    assert tab.current_params()["layers"] == start
+
+
+def test_settings_are_saved_on_close_and_restored(qtbot, monkeypatch):
+    from ml_model_dojo.ui.main_window import MainWindow
+    monkeypatch.setattr(MainWindow, "report_error", lambda self, tb: pytest.fail(tb))
+    w1 = MainWindow()
+    qtbot.addWidget(w1)
+    w1.data_panel.set_state(DataConfig("regression", "cubic", 300, noise=0.5), 4)
+    w1.model_tabs["knn"].params.rows["k"]["widget"].setValue(17)
+    qtbot.wait(300)
+    w1.close()
+    w2 = MainWindow()
+    qtbot.addWidget(w2)
+    assert w2.dataset.config.dataset == "cubic" and w2.dataset.seed == 4
+    assert w2.model_tabs["knn"].current_params("regression")["k"] == 17
+    w2.compare.shutdown()
