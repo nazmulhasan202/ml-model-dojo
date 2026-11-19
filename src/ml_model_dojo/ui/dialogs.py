@@ -8,9 +8,10 @@ from PySide6.QtCore import QObject, QRect, Qt
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
                                QTabWidget, QTextBrowser, QVBoxLayout, QWidget)
 
+from .. import __author__, __email__, __repo_url__, __version__
 from .. import metrics as M
 
-log = logging.getLogger(__name__)
+log =logging.getLogger(__name__)
 
 TERMS = {
     "Overfitting": "The model fits noise in the training data, so training scores look great while test scores fall behind.",
@@ -70,6 +71,22 @@ class HelpDialog(QDialog):
         gl = QTextBrowser()
         gl.setHtml(glossary_html())
         tabs.addTab(gl, "Glossary")
+        who = QTextBrowser()
+        who.setOpenExternalLinks(True)
+        who.setHtml(
+            "<h3>ML Model Dojo</h3>"
+            f"<p>An interactive lab for choosing machine learning models.<br>Version {__version__} (beta, work in progress)</p>"
+            "<h4>Created by</h4>"
+            f"<p><b>{__author__}</b><br><a href='mailto:{__email__}'>{__email__}</a></p>"
+            "<ul>"
+            "<li>PhD in Systems and Industrial Engineering (ongoing), University of Arizona</li>"
+            "<li>Master of Science in Industrial and Production Engineering, "
+            "Bangladesh University of Engineering and Technology (BUET)</li>"
+            "<li>Bachelor of Science in Industrial and Production Engineering, "
+            "Bangladesh University of Engineering and Technology (BUET)</li></ul>"
+            "<h4>License and source code</h4>"
+            f"<p>Released under the MIT license.<br><a href='{__repo_url__}'>{__repo_url__}</a></p>")
+        tabs.addTab(who, "About")
         v.addWidget(tabs)
         row = QHBoxLayout()
         tour = QPushButton("Start guided tour")

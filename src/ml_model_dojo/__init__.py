@@ -1,2 +1,5 @@
 """ML Model Dojo: an interactive desktop tool for comparing machine learning models."""
 __version__ = "0.9.0"
+__author__ = "Nazmul Hasan"
+__email__ = "nazmul.ipe.buet@gmail.com"
+__repo_url__ = "https://github.com/nazmulhasan202/ml-model-dojo"

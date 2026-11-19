@@ -94,6 +94,7 @@ QLabel#badge_ok {{ background: #e3f4ea; border: 1px solid #9ad2ae; border-radius
 QLabel#badge_warn {{ background: #fde8e8; border: 1px solid #e59a9a; border-radius: 10px; padding: 3px 10px; font-weight: 600; color: #7f1d1d; }}
 QLabel#stale {{ background: #fff1cc; border: 1px solid #e0b440; border-radius: 9px; padding: 1px 8px; color: #6b4a00; }}
 QLabel#empty {{ color: {MUTED}; font-size: 11pt; background: transparent; }}
+QLabel#credit {{ color: {MUTED}; font-size: 9pt; background: transparent; padding-right: 4px; }}
 QWidget#card {{ background: {CARD}; border: 1px solid {LINE}; border-radius: 10px; }}
 """
 

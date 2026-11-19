@@ -7,10 +7,11 @@ import time
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMenu, QPushButton,
                                QTabWidget, QToolButton, QVBoxLayout, QWidget)
 
+from .. import __author__, __email__
 from ..data.datasets import DataConfig, Dataset, generate
 from ..models import MODEL_ORDER, get_spec
 from ..scenarios.definitions import SCENARIOS
@@ -18,6 +19,7 @@ from .compare_tab import CompareTab
 from .data_panel import DataPanel
 from .dialogs import HelpDialog, TourController, fix_suffix, safe_save, show_error
 from .model_tab import ModelTab
+from .theme import ACCENT
 
 log = logging.getLogger("msp")
 STATE_VERSION = 1
@@ -114,6 +116,13 @@ class MainWindow(QMainWindow):
         sb.addWidget(self.hover, 1)
         sb.addPermanentWidget(self.elapsed)
         sb.addPermanentWidget(self.cancel_btn)
+        credit = QLabel(f'Created by <b>{__author__}</b> '
+                        f'(<a href="mailto:{__email__}" style="color:{ACCENT}; text-decoration:none;">{__email__}</a>)')
+        credit.setObjectName("credit")
+        credit.setTextFormat(Qt.RichText)
+        credit.setOpenExternalLinks(True)
+        credit.setToolTip("Open Help, then the About tab, for more about the author and the project.")
+        sb.addPermanentWidget(credit)
         self.clock = QTimer(self)
         self.clock.setInterval(200)
         self.clock.timeout.connect(self._tick_clock)
