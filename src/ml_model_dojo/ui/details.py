@@ -104,13 +104,18 @@ class ForestDetails(Details):
         self.v.addStretch()
         self.multi.setVisible(False)
         self.toggle.toggled.connect(self.multi.setVisible)
-        self.toggle.toggled.connect(lambda on: self._data and self.refresh(self._run, self._data) if on else None)
+        self.toggle.toggled.connect(self._on_toggle)
         self._run = self._data = None
+
+    def _on_toggle(self, on: bool):
+        # There is nothing to draw until a forest has been trained (and again after the data change clears it).
+        if on and self._run is not None and self._data is not None:
+            self.refresh(self._run, self._data)
 
     def clear(self):
         self.hint.setText("Out-of-bag score appears after training.")
         self.oob.setText("")
-        self._run = None
+        self._run = self._data = None
 
     def refresh(self, run, data):
         self._run, self._data = run, data

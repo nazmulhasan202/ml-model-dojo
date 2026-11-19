@@ -13,6 +13,7 @@ from ..models.base import CLS, ModelSpec
 from ..models.evaluate import evaluate
 from ..workers.qt_workers import FitTask, pool
 from .details import make_details
+from .dialogs import IMAGE_SUFFIXES, fix_suffix, safe_save
 from .metrics_panel import MetricsPanel
 from .param_panel import ParamPanel
 from .plots import BoundaryPlot
@@ -430,5 +431,6 @@ class ModelTab(QWidget):
     def export_png(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export PNG", f"{self.spec.id}.png", "PNG image (*.png)")
         if path:
-            self.plot.export_png(path)
-            self.message.emit(f"Saved {path}")
+            path = fix_suffix(path, ".png", IMAGE_SUFFIXES)
+            if safe_save(self, path, self.plot.export_png):
+                self.message.emit(f"Saved {path}")

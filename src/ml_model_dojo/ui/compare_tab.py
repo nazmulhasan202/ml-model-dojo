@@ -24,6 +24,7 @@ from ..models import MODEL_ORDER, get_spec
 from ..models.base import CLS
 from ..seeding import SEEDS
 from ..workers.compare_runner import job_key, make_job, run_job, warm_up
+from .dialogs import IMAGE_SUFFIXES, fix_suffix, safe_save
 from .plots import draw_data, marker_size, reg_norm, y_limits
 from .theme import BLUE, CLS_CMAP, MODEL_COLORS, ORANGE, RED, REG_CMAP
 
@@ -739,8 +740,9 @@ class CompareTab(QWidget):
             return
         path, _ = QFileDialog.getSaveFileName(self, "Export panels", "comparison_panels.png", "PNG image (*.png)")
         if path:
-            self.fig_panels.savefig(path, dpi=250, bbox_inches="tight", facecolor="white")
-            self.status.setText(f"Saved {path}")
+            path = fix_suffix(path, ".png", IMAGE_SUFFIXES)
+            if safe_save(self, path, lambda p: self.fig_panels.savefig(p, dpi=250, bbox_inches="tight", facecolor="white")):
+                self.status.setText(f"Saved {path}")
 
     def results_rows(self) -> tuple[list[str], list[list]]:
         keys = M.CLS_KEYS if self.ds.problem == CLS else M.REG_KEYS
@@ -768,9 +770,13 @@ class CompareTab(QWidget):
             return
         path, _ = QFileDialog.getSaveFileName(self, "Export results", "comparison_results.csv", "CSV (*.csv)")
         if path:
+            path = fix_suffix(path, ".csv")
             head, rows = self.results_rows()
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                w = csv.writer(f)
-                w.writerow(head)
-                w.writerows(rows)
-            self.status.setText(f"Saved {path}")
+
+            def write(p):
+                with open(p, "w", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    w.writerow(head)
+                    w.writerows(rows)
+            if safe_save(self, path, write):
+                self.status.setText(f"Saved {path}")

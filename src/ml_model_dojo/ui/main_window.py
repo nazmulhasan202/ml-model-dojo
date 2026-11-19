@@ -16,7 +16,7 @@ from ..models import MODEL_ORDER, get_spec
 from ..scenarios.definitions import SCENARIOS
 from .compare_tab import CompareTab
 from .data_panel import DataPanel
-from .dialogs import HelpDialog, TourController, show_error
+from .dialogs import HelpDialog, TourController, fix_suffix, safe_save, show_error
 from .model_tab import ModelTab
 
 log = logging.getLogger("msp")
@@ -198,8 +198,10 @@ class MainWindow(QMainWindow):
     def save_state(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save settings", "playground_settings.json", "JSON (*.json)")
         if path:
-            Path(path).write_text(json.dumps(self.state_dict(), indent=2), encoding="utf-8")
-            self.hover.setText(f"Saved {path}")
+            path = fix_suffix(path, ".json")
+            text = json.dumps(self.state_dict(), indent=2)
+            if safe_save(self, path, lambda p: Path(p).write_text(text, encoding="utf-8")):
+                self.hover.setText(f"Saved {path}")
 
     def load_state(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load settings", "", "JSON (*.json)")

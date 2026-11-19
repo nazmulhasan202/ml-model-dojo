@@ -1,11 +1,16 @@
 """Dialogs: metric glossary, help with guided tour, error reporting."""
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 from PySide6.QtCore import QObject, QRect, Qt
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
                                QTabWidget, QTextBrowser, QVBoxLayout, QWidget)
 
 from .. import metrics as M
+
+log = logging.getLogger(__name__)
 
 TERMS = {
     "Overfitting": "The model fits noise in the training data, so training scores look great while test scores fall behind.",
@@ -133,6 +138,29 @@ class TourController(QObject):
     def finish(self):
         self.dlg.close()
         self.frame.hide()
+
+
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".pdf", ".svg", ".tif", ".tiff", ".webp"}
+
+
+def fix_suffix(path: str, default: str, allowed: set[str] | None = None) -> str:
+    """Add a default extension when the typed name has none, or one the writer cannot produce."""
+    suffix = Path(path).suffix.lower()
+    if allowed is None:
+        return path if suffix else path + default
+    return path if suffix in allowed else path + default
+
+
+def safe_save(parent, path: str, writer) -> bool:
+    """Call writer(path). A locked, read-only or missing file gives a plain message, not a traceback."""
+    try:
+        writer(path)
+        return True
+    except (OSError, ValueError) as e:
+        log.warning("Could not save %s: %s", path, e)
+        show_error(parent, "The file could not be saved. Check that the folder exists, that you may write to it, "
+                           "and that the file is not open in another program such as Excel.", f"{type(e).__name__}: {e}")
+        return False
 
 
 def show_error(parent, message: str, details: str = ""):
